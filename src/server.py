@@ -120,7 +120,9 @@ def make_api_request(source_id: str, query: str, limit: int = 5) -> Optional[Dic
             params = {"query": query, "per_page": min(limit, 80)}
 
         elif source_id == "pixabay" and api_key:
-            params = {"key": api_key, "q": query, "per_page": min(limit, 200)}
+            # Pixabay rejects per_page values below 3 with HTTP 400, so clamp
+            # the lower bound; only the first five hits are shown regardless.
+            params = {"key": api_key, "q": query, "per_page": max(3, min(limit, 200))}
 
         logger.info(f"Making API request to {source_id}: {api_url}")
         response = requests.get(api_url, headers=headers, params=params, timeout=10)
@@ -129,7 +131,12 @@ def make_api_request(source_id: str, query: str, limit: int = 5) -> Optional[Dic
         return response.json()
 
     except requests.RequestException as e:
-        logger.error(f"API request failed for {source_id}: {e}")
+        # Do not log the exception text: requests and urllib3 embed the full
+        # request URL in it, and Pixabay's API key travels in the query string.
+        status = getattr(e.response, "status_code", None)
+        logger.error(
+            f"API request failed for {source_id}: {type(e).__name__} (status={status})"
+        )
         return None
     except json.JSONDecodeError as e:
         logger.error(f"Failed to parse JSON response from {source_id}: {e}")
@@ -455,11 +462,9 @@ async def check_api_status() -> List[TextContent]:
             else:
                 api_key = os.getenv(api_key_env)
                 if api_key:
-                    # Mask the key for security
-                    masked_key = api_key[:8] + "..." if len(api_key) > 8 else "***"
-                    content.append(
-                        f"✅ **API Key ({api_key_env}):** Configured ({masked_key})\n"
-                    )
+                    # Never echo any part of the key: tool output lands in the
+                    # model's context and the session transcript.
+                    content.append(f"✅ **API Key ({api_key_env}):** Configured\n")
                 else:
                     content.append(
                         f"❌ **API Key ({api_key_env}):** Not found in environment\n"

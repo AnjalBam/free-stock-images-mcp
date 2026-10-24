@@ -9,10 +9,11 @@ description = "MCP server for getting free stock images"
 authors = [{name = "Xavier Collantes"}]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
-    "mcp>=1.0.0",
-    "requests>=2.28.0",
+    "mcp>=1.23.0,<2",
+    "requests>=2.32.4",
+    "urllib3>=2.6",
     "pydantic>=2.0.0",
 ]
 
